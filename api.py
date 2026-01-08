@@ -8,4 +8,6 @@ app = FastAPI()
 @app.get("/")
 async def root():
     # 返回JSON响应（FastAPI会自动转成JSON）
-    return {"message": "Hello FastAPI!"}
+    return {"message": "Hello MyFastAPI!"}
+
+
