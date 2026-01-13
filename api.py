@@ -3,8 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
 
 
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 应用启动时执行的代码
