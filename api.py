@@ -1,8 +1,7 @@
 # 导入FastAPI
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
-import psycopg2
-from psycopg2 import OperationalError
+import asyncpg
 import os
 from dotenv import load_dotenv
 
@@ -19,24 +18,33 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 # 全局数据库连接对象
 db_connection = None
 
-def create_db_connection():
+async def create_db_connection():
     """创建数据库连接"""
     try:
-        # 使用DSN格式连接
-        dsn = "host=localhost dbname=mymanus user=postgres password=your_password_here port=5432"
+        # 使用从环境变量加载的参数
+        conn_params = {
+            "host": os.getenv("DB_HOST", "localhost"),
+            "port": int(os.getenv("DB_PORT", "5432")),
+            "database": os.getenv("DB_NAME", "mymanus"),
+            "user": os.getenv("DB_USER", "postgres"),
+            "password": os.getenv("DB_PASSWORD", "your_password_here")
+        }
         
-        print(f"数据库连接DSN: host=localhost dbname=mymanus user=postgres password=****** port=5432")
+        print("\n使用以下参数创建数据库连接:")
+        for key, value in conn_params.items():
+            if key == "password":
+                print(f"- {key}: {'*' * len(value)}")
+            else:
+                print(f"- {key}: {value}")
         
-        # 测试DSN的编码
-        try:
-            dsn.encode('utf-8')
-            print("✅ DSN可以用UTF-8编码")
-        except UnicodeEncodeError as e:
-            print(f"❌ DSN无法用UTF-8编码: {e}")
+        # 尝试创建数据库连接
+        print("\n尝试创建数据库连接...")
         
-        conn = psycopg2.connect(dsn)
-        print("\n✅ 成功连接到PostgreSQL数据库!")
+        # 使用asyncpg创建异步连接
+        conn = await asyncpg.connect(**conn_params)
+        print("✅ 使用asyncpg成功连接到PostgreSQL数据库!")
         return conn
+    
     except Exception as e:
         print(f"\n❌ 无法连接到PostgreSQL数据库: {type(e).__name__}: {e}")
         import traceback
@@ -55,7 +63,7 @@ async def lifespan(app: FastAPI):
     print("应用关闭")
     # 关闭数据库连接
     if db_connection:
-        db_connection.close()
+        await db_connection.close()
         print("✅ 数据库连接已关闭")
 
 
@@ -65,12 +73,12 @@ api_router = APIRouter()
 
 # 添加测试数据库连接的路由
 @api_router.get("/test-db-connection")
-def test_db_connection():
+async def test_db_connection():
     """测试数据库连接"""
     global db_connection
     try:
         if db_connection is None:
-            db_connection = create_db_connection()
+            db_connection = await create_db_connection()
             if db_connection:
                 return {"status": "success", "message": "✅ 成功连接到PostgreSQL数据库!"}
             else:
